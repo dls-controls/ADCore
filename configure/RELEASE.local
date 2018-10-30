@@ -23,7 +23,7 @@ AREA_DETECTOR = $(SUPPORT)
 ASYN = $(SUPPORT)/asyn/4-31
 
 # BUSY is needed for busy record
-BUSY = $(SUPPORT)/busy/1-6-1dls1
+BUSY = $(SUPPORT)/busy/1-7dls0-1
 
 # SSCAN is needed for scanning threshold on Pilatus and general scanning
 SSCAN = $(SUPPORT)/sscan/2-8-1
