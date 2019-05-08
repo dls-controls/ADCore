@@ -65,10 +65,6 @@ void NDPluginColorConvert::convertColor(NDArray *pArray)
     pAttribute = pArray->pAttributeList->find("BayerPattern");
     if (pAttribute) pAttribute->getValue(NDAttrInt32, &bayerPattern);
 
-    // interrogate input attributes
-    printf("input colorMode and bayerPattern: %u, %u\n",
-        colorMode, bayerPattern);
-
     /* if we have int8 data then check for false color */
     if (pArray->dataType == NDInt8 || pArray->dataType == NDUInt8) {
         getIntegerParam(NDPluginColorConvertFalseColor, &falseColor);            
