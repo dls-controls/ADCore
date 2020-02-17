@@ -8,6 +8,7 @@
 #ifndef ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_
 #define ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_
 
+#define FLUSH_SIZE 1000
 #include <string>
 #include <hdf5.h>
 #include <asynDriver.h>
@@ -66,7 +67,8 @@ private:
   int              nextRecord_;
   int              extraDimensions_;
   hdf5::When_t     whenToSave_;
-
+  void             *pDatavaluestore[FLUSH_SIZE][1];
+  int              dataset_count;
 };
 
 #endif /* ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_ */
