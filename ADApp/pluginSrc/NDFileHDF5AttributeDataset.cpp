@@ -175,6 +175,8 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
 {
   asynStatus status = asynSuccess;
   int ret;
+  hsize_t *dataoffset;
+
   //check if the attribute is meant to be saved at this time
   if (whenToSave_ == whenToSave) {
     // Extend the dataset as required to store the data
@@ -188,17 +190,19 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
     if (ret == ND_ERROR) {
       memset(pDatavaluestore[dataset_count], 0, MAX_ATTRIBUTE_STRING_SIZE);
     }
-
-    if (dataset_count == 0){
+    dataset_count++;
+    // Check if we are being asked to flush or if the size of the store has reached its maximum amount
+    if (flush == 1 or dataset_count == MAX_BATCH_SIZE){
+      dataoffset = (hsize_t*)calloc(sizeof(offset_), sizeof(hsize_t*));
+      *dataoffset = *offset_;
+      elementSize_[0] = dataset_count;
+      dataoffset[0] -= (dataset_count - 1);
       // Work with HDF5 library to select a suitable hyperslab (one element) and write the new data to it
       H5Dset_extent(dataset_, dims_);
       filespace_ = H5Dget_space(dataset_);
+      memspace_ = H5Screate_simple(rank_, elementSize_, NULL);
       // Select the hyperslab
-      H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
-    }
-    dataset_count++;
-    // Check if we are being asked to flush
-    if (flush == 1 or dataset_count == FLUSH_SIZE){
+      H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, dataoffset, NULL, elementSize_, NULL);
       H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDatavaluestore);
       if (flush ==1)
         status = this->flushDataset();
@@ -212,9 +216,36 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
   return status;
 }
 
+asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(int flush)
+{
+  asynStatus status = asynSuccess;
+  hsize_t *dataoffset;
+  hsize_t  *actualdims;
+  // Check if we are being asked to flush or if the size of the store has reached its maximum amount
+  if (flush == 1){
+    dataoffset = (hsize_t*)calloc(sizeof(offset_), sizeof(hsize_t*));
+    *dataoffset = *offset_;
+    elementSize_[0] = dataset_count;
+    dataoffset[0] -= (dataset_count - 1);
+    // Work with HDF5 library to select a suitable hyperslab (one element) and write the new data to it
+    H5Dset_extent(dataset_, dims_);
+    filespace_ = H5Dget_space(dataset_);
+    memspace_ = H5Screate_simple(rank_, elementSize_, NULL);
+    // Select the hyperslab
+    H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, dataoffset, NULL, elementSize_, NULL);
+    H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDatavaluestore);
+    status = this->flushDataset();
+    H5Sclose(filespace_);
+    dataset_count = 0;
+  }
+  nextRecord_++;
+  return status;
+}
+
 asynStatus NDFileHDF5AttributeDataset::closeAttributeDataset()
 {
   //printf("close called for %s\n", name_.c_str());
+  writeAttributeDataset(1);
   H5Dclose(dataset_);
   H5Sclose(memspace_);
   H5Sclose(dataspace_);
@@ -306,12 +337,10 @@ asynStatus NDFileHDF5AttributeDataset::configureDimsFromDataset(bool multiframe,
 
   elementSize_[extradims]   = 1;
   elementSize_[extradims+1] = 1;
-  elementSize_[0]           = FLUSH_SIZE;
   chunk_[extradims]         = 1;
   chunk_[extradims+1]       = 1;
   maxdims_[extradims]       = 1;
   maxdims_[extradims+1]     = 1;
-  dims_[0]                  = FLUSH_SIZE;
   dims_[extradims]          = 1;
   dims_[extradims+1]        = 1;
   offset_[extradims]        = 0;
@@ -397,8 +426,8 @@ void NDFileHDF5AttributeDataset::extendDataSet()
   // in the simple case where dont use the extra X,Y dimensions we
   // just increment the n'th frame number
   if (extradims == 0 || extradims == 1){
-    this->dims_[0] = this->dims_[0] + FLUSH_SIZE;
-    this->offset_[0]= this->offset_[0] + FLUSH_SIZE;
+    this->dims_[0]++;
+    this->offset_[0]++;
     return;
   }
 
@@ -408,13 +437,13 @@ void NDFileHDF5AttributeDataset::extendDataSet()
     if (this->dims_[i] == this->virtualdims_[i]) growdims = false;
 
     if (growoffset){
-      this->offset_[i]=this->offset_[i]+FLUSH_SIZE;
+      this->offset_[i]++;
       growoffset = false;
     }
 
     if (growdims){
       if (this->dims_[i] < this->virtualdims_[i]) {
-        this->dims_[i] = this->dims_[i]+FLUSH_SIZE;
+        this->dims_[i]++;
         growdims = false;
       }
     }
@@ -433,10 +462,10 @@ void NDFileHDF5AttributeDataset::extendDataSet(hsize_t *offsets)
   // In this case the dimensions and offsets have been supplied to us so simply
   // use these values.
   for (int index = 0; index < this->extraDimensions_; index++){
-    if (offsets[index]+FLUSH_SIZE < this->virtualdims_[index]+FLUSH_SIZE){
-      if (this->dims_[index] < offsets[index]+FLUSH_SIZE){
+    if (offsets[index]+1 < this->virtualdims_[index]+1){
+      if (this->dims_[index] < offsets[index]+1){
         // Increase the dimension to accomodate the new position
-        this->dims_[index] = offsets[index]+FLUSH_SIZE;
+        this->dims_[index] = offsets[index]+1;
 
       }
       // Always set the offset position even if we don't increase the dims
@@ -448,9 +477,9 @@ void NDFileHDF5AttributeDataset::extendDataSet(hsize_t *offsets)
 
 void NDFileHDF5AttributeDataset::extendIndexDataSet(hsize_t offset)
 {
-  if (this->dims_[0] < offset+FLUSH_SIZE){
+  if (this->dims_[0] < offset+1){
     // Increase the dimension to accomodate the new position
-    this->dims_[0] = offset+FLUSH_SIZE;
+    this->dims_[0] = offset+1;
   }
   // Always set the offset position even if we don't increase the dims
   this->offset_[0] = offset;

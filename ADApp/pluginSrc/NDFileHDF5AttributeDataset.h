@@ -8,7 +8,7 @@
 #ifndef ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_
 #define ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_
 
-#define FLUSH_SIZE 1000
+#define MAX_BATCH_SIZE 100000
 #include <string>
 #include <hdf5.h>
 #include <asynDriver.h>
@@ -28,6 +28,7 @@ public:
   void setParentGroupName(const std::string& group);
   asynStatus createDataset(int user_chunking);
   asynStatus createDataset(bool multiframe, int extradimensions, int *extra_dims, int *user_chunking);
+  asynStatus writeAttributeDataset(int flush);
   asynStatus writeAttributeDataset(hdf5::When_t whenToSave, NDAttribute *ndAttr, int flush);
   asynStatus writeAttributeDataset(hdf5::When_t whenToSave, hsize_t *offsets, NDAttribute *ndAttr, int flush, int indexed);
   asynStatus closeAttributeDataset();
@@ -67,7 +68,7 @@ private:
   int              nextRecord_;
   int              extraDimensions_;
   hdf5::When_t     whenToSave_;
-  void             *pDatavaluestore[FLUSH_SIZE][1];
+  void             *pDatavaluestore[MAX_BATCH_SIZE][1];
   int              dataset_count;
 };
 
