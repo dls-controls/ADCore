@@ -68,7 +68,7 @@ private:
   int              nextRecord_;
   int              extraDimensions_;
   hdf5::When_t     whenToSave_;
-  void             *pDatavaluestore[MAX_BATCH_SIZE][1];
+  void             *pDataValueStore_[MAX_BATCH_SIZE][1];
   int              dataset_count;
 };
 

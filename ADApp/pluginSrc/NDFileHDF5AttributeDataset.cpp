@@ -185,9 +185,9 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
       extendIndexDataSet(offsets[indexed]);
     }
     // find the data based on datatype
-    ret = ndAttr->getValue(ndAttr->getDataType(), pDatavaluestore[dataset_count], MAX_ATTRIBUTE_STRING_SIZE);
+    ret = ndAttr->getValue(ndAttr->getDataType(), pDataValueStore_[dataset_count], MAX_ATTRIBUTE_STRING_SIZE);
     if (ret == ND_ERROR) {
-      memset(pDatavaluestore[dataset_count], 0, MAX_ATTRIBUTE_STRING_SIZE);
+      memset(pDataValueStore_[dataset_count], 0, MAX_ATTRIBUTE_STRING_SIZE);
     }
     dataset_count++;
     // Check if we are being asked to flush or if the size of the store has reached its maximum amount
@@ -201,7 +201,7 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
       memspace_ = H5Screate_simple(rank_, elementSize_, NULL);
       // Select the hyperslab
       H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
-      H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDatavaluestore);
+      H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDataValueStore_);
       if (flush ==1)
         status = this->flushDataset();
       H5Sclose(filespace_);
@@ -229,7 +229,7 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(int close)
     memspace_ = H5Screate_simple(rank_, elementSize_, NULL);
     // Select the hyperslab
     H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
-    H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDatavaluestore);
+    H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDataValueStore_);
     H5Sclose(filespace_);
     dataset_count = 0;
   }
