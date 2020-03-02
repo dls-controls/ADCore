@@ -28,7 +28,6 @@ public:
   void setParentGroupName(const std::string& group);
   asynStatus createDataset(int user_chunking);
   asynStatus createDataset(bool multiframe, int extradimensions, int *extra_dims, int *user_chunking);
-  asynStatus writeAttributeDataset(int close);
   asynStatus writeAttributeDataset(hdf5::When_t whenToSave, NDAttribute *ndAttr, int flush);
   asynStatus writeAttributeDataset(hdf5::When_t whenToSave, hsize_t *offsets, NDAttribute *ndAttr, int flush, int indexed);
   asynStatus closeAttributeDataset();
@@ -41,6 +40,7 @@ private:
   asynStatus configureDims(int user_chunking);
   asynStatus configureDimsFromDataset(bool multiframe, int extradimensions, int *extra_dims, int *user_chunking);
   asynStatus typeAsHdf();
+  asynStatus writeAttributeDatasetBatch(int flush);
   void extendDataSet();
   void extendDataSet(hsize_t *offsets);
   void extendIndexDataSet(hsize_t offset);
@@ -69,7 +69,7 @@ private:
   int              extraDimensions_;
   hdf5::When_t     whenToSave_;
   void             *pDataValueStore_[MAX_BATCH_SIZE][1];
-  int              dataset_count;
+  int              attributeBatchCount_;
 };
 
 #endif /* ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_ */

@@ -36,7 +36,7 @@ NDFileHDF5AttributeDataset::NDFileHDF5AttributeDataset(hid_t file, const std::st
   nextRecord_(0),
   extraDimensions_(0),
   whenToSave_(hdf5::OnFrame),
-  dataset_count(0)
+  attributeBatchCount_(0)
 {
   //printf("Constructor called for %s\n", name.c_str());
   // Allocate enough memory for the fill value to accept any data type
@@ -141,30 +141,14 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
   if (whenToSave_ == whenToSave) {
     // Extend the dataset as required to store the data
     extendDataSet();
-
     // find the data based on datatype
-    ret = ndAttr->getValue(ndAttr->getDataType(), pDatavalue, MAX_ATTRIBUTE_STRING_SIZE);
+    ret = ndAttr->getValue(ndAttr->getDataType(), pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
     if (ret == ND_ERROR) {
-      memset(pDatavalue, 0, MAX_ATTRIBUTE_STRING_SIZE);
+      memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
     }
-    // Work with HDF5 library to select a suitable hyperslab (one element) and write the new data to it
-    H5Dset_extent(dataset_, dims_);
-    filespace_ = H5Dget_space(dataset_);
-
-    // Select the hyperslab
-    H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
-
+    attributeBatchCount_++;
     // Write the data to the hyperslab if data is defined
-    if (!isUndefined_) {
-       H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDatavalue);
-    }
-
-    // Check if we are being asked to flush
-    if (flush == 1){
-      status = this->flushDataset();
-    }
-
-    H5Sclose(filespace_);
+    writeAttributeDatasetBatch(flush);
     nextRecord_++;
   }
 
@@ -185,44 +169,28 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
       extendIndexDataSet(offsets[indexed]);
     }
     // find the data based on datatype
-    ret = ndAttr->getValue(ndAttr->getDataType(), pDataValueStore_[dataset_count], MAX_ATTRIBUTE_STRING_SIZE);
+    ret = ndAttr->getValue(ndAttr->getDataType(), pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
     if (ret == ND_ERROR) {
-      memset(pDataValueStore_[dataset_count], 0, MAX_ATTRIBUTE_STRING_SIZE);
+      memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
     }
-    dataset_count++;
-    // Check if we are being asked to flush or if the size of the store has reached its maximum amount
-    if (flush == 1 or dataset_count == MAX_BATCH_SIZE){
-      elementSize_[0] = dataset_count;
-      // Offset has been incremented, so is at where the stored data should end
-      offset_[0] -= (dataset_count - 1);
-      // Work with HDF5 library to select a suitable hyperslab (one element) and write the new data to it
-      H5Dset_extent(dataset_, dims_);
-      filespace_ = H5Dget_space(dataset_);
-      memspace_ = H5Screate_simple(rank_, elementSize_, NULL);
-      // Select the hyperslab
-      H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
-      H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDataValueStore_);
-      if (flush ==1)
-        status = this->flushDataset();
-      H5Sclose(filespace_);
-      dataset_count = 0;
-    }
-
+    attributeBatchCount_++;
+    writeAttributeDatasetBatch(flush);
+    
     nextRecord_++;
   }
 
   return status;
 }
 
-// This function is used to write the attributes from the store when the dataset is closed
-asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(int close)
+// This function is used to write the attributes from the store
+asynStatus NDFileHDF5AttributeDataset::writeAttributeDatasetBatch(int flush)
 {
   asynStatus status = asynSuccess;
-  // Check if we are being asked to flush or if the size of the store has reached its maximum amount
-  if (close == 1){
-    elementSize_[0] = dataset_count;
+  // Check if it is being asked to flush or if the dataStore has hit its maximum size
+  if ((flush == 1 or attributeBatchCount_ == MAX_BATCH_SIZE) and (!isUndefined_)){
+    elementSize_[0] = attributeBatchCount_;
     // Offset has been incremented, so is at where the stored data should end
-    offset_[0] -= (dataset_count - 1);
+    offset_[0] -= (attributeBatchCount_ - 1);
     // Work with HDF5 library to select a suitable hyperslab (one element) and write the new data to it
     H5Dset_extent(dataset_, dims_);
     filespace_ = H5Dget_space(dataset_);
@@ -230,8 +198,10 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(int close)
     // Select the hyperslab
     H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
     H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pDataValueStore_);
+    if(flush ==1)
+      status = this->flushDataset();
     H5Sclose(filespace_);
-    dataset_count = 0;
+    attributeBatchCount_ = 0;
   }
   return status;
 }
@@ -239,7 +209,7 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(int close)
 asynStatus NDFileHDF5AttributeDataset::closeAttributeDataset()
 {
   //printf("close called for %s\n", name_.c_str());
-  writeAttributeDataset(1);
+  writeAttributeDatasetBatch(1);
   H5Dclose(dataset_);
   H5Sclose(memspace_);
   H5Sclose(dataspace_);
