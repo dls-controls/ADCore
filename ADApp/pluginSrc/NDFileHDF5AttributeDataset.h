@@ -28,7 +28,7 @@ public:
   void setParentGroupName(const std::string& group);
   asynStatus createDataset(int user_chunking);
   asynStatus createDataset(bool multiframe, int extradimensions, int *extra_dims, int *user_chunking);
-  asynStatus writeAttributeDataset(int flush);
+  asynStatus writeAttributeDataset(int close);
   asynStatus writeAttributeDataset(hdf5::When_t whenToSave, NDAttribute *ndAttr, int flush);
   asynStatus writeAttributeDataset(hdf5::When_t whenToSave, hsize_t *offsets, NDAttribute *ndAttr, int flush, int indexed);
   asynStatus closeAttributeDataset();
