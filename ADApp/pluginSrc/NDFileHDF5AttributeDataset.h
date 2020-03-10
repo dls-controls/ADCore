@@ -44,6 +44,7 @@ private:
   void extendDataSet();
   void extendDataSet(hsize_t *offsets);
   void extendIndexDataSet(hsize_t offset);
+  void calculateMaxBatchSize();
 
   std::string      name_;            // Name of the attribute
   std::string      dsetName_;        // Name of the dataset to store
@@ -70,6 +71,8 @@ private:
   hdf5::When_t     whenToSave_;
   void             *pDataValueStore_[MAX_BATCH_SIZE][1];
   int              attributeBatchCount_;
+  hsize_t          *dataStoreOffset_;
+  int              ammendedMaxBatchCount_;
 };
 
 #endif /* ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_ */
