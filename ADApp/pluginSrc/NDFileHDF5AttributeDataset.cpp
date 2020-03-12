@@ -37,7 +37,9 @@ NDFileHDF5AttributeDataset::NDFileHDF5AttributeDataset(hid_t file, const std::st
   extraDimensions_(0),
   whenToSave_(hdf5::OnFrame),
   attributeBatchCount_(0),
-  dataStoreOffset_(NULL)
+  dataStoreOffset_(NULL),
+  lastOffset_(NULL),
+  completeLine_(0)
 {
   //printf("Constructor called for %s\n", name.c_str());
   // Allocate enough memory for the fill value to accept any data type
@@ -177,7 +179,17 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
       memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
     }
     attributeBatchCount_++;
-    if (attributeBatchCount_ < ammendedMaxBatchCount_ and flush != 1){
+    int dataEnd = 0;
+    for (int i = 0; i<(extraDimensions_); i++)
+    {
+      if (offset_[i] == virtualdims_[i] - 1){
+        dataEnd = 1;
+      } else{
+        dataEnd = 0;
+        break;
+      }
+    }
+    if (attributeBatchCount_ < ammendedMaxBatchCount_ and flush != 1 and dataEnd != 1){
       for (int i= extraDimensions_ - 1; i>=0; --i)
       {
         if (dataStoreOffset_[i]< (virtualdims_[i] -1) and virtualdims_[i]>0){
@@ -199,26 +211,51 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
 // This function is used to write the attributes from the store
 asynStatus NDFileHDF5AttributeDataset::writeAttributeDatasetBatch(int flush)
 {
+  int tempCount = 1;
+  int lineCompleted = 0;
   asynStatus status = asynSuccess;
   // Check if it is being asked to flush or if the dataStore has hit its maximum size
   if ((flush == 1 or attributeBatchCount_ == ammendedMaxBatchCount_) and (!isUndefined_)){
     for (int i = 0; i<(extraDimensions_); i++){
-      if (i == 0){
+      if (completeLine_ == 1){
+        offset_[i] = lastOffset_[i];
+        if (i > 0)
+          elementSize_[i] = dataStoreOffset_[i] + 1 - lastOffset_[i];
+        else
+          elementSize_[i] = 1;
+        lineCompleted = 1;
+        lastOffset_[i] = dataStoreOffset_[i] - 1;
+      } else if(i == 0){
         elementSize_[i] = dataStoreOffset_[i] + 1;
+        lastOffset_[i] = offset_[i];
         offset_[i] -= (dataStoreOffset_[i]);
-      }
-      else if (virtualdims_[i]>0){
-        elementSize_[i] = virtualdims_[i];
+      } else if (virtualdims_[i]>0){
+        if (dataStoreOffset_[0] > 0 or dataStoreOffset_[i] > 0)
+          elementSize_[i] = virtualdims_[i];
+        else
+          elementSize_[i] = 1;
+        lastOffset_[i] = dataStoreOffset_[i] - 1;
         offset_[i] = 0;
-      }
-      else {
+      } else {
         elementSize_[i] = 1;
+        lastOffset_[i] = dataStoreOffset_[i] - 1;
         offset_[i] -= dataStoreOffset_[i];
       }
 
       // Offset has been incremented, so is at where the stored data should end
       if (dataStoreOffset_[i] == virtualdims_[i] - 1 or i ==0)
         dataStoreOffset_[i] = 0;
+      else
+        completeLine_ = 1;
+
+      if (i > 0 and dataStoreOffset_[i])
+        tempCount = tempCount * virtualdims_[i]-dataStoreOffset_[i];
+    }
+
+    if (lineCompleted == 1){
+      lineCompleted = 0;
+      completeLine_ = 0;
+      calculateMaxBatchSize();
     }
     // Work with HDF5 library to select a suitable hyperslab (one element) and write the new data to it
     H5Dset_extent(dataset_, dims_);
@@ -231,6 +268,8 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDatasetBatch(int flush)
       status = this->flushDataset();
     H5Sclose(filespace_);
     attributeBatchCount_ = 0;
+    if (completeLine_ == 1)
+      ammendedMaxBatchCount_ = tempCount;
   }
   return status;
 }
@@ -238,7 +277,6 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDatasetBatch(int flush)
 asynStatus NDFileHDF5AttributeDataset::closeAttributeDataset()
 {
   //printf("close called for %s\n", name_.c_str());
-  dataStoreOffset_[0]--;
   writeAttributeDatasetBatch(1);
   H5Dclose(dataset_);
   H5Sclose(memspace_);
@@ -261,6 +299,7 @@ asynStatus NDFileHDF5AttributeDataset::configureDims(int user_chunking)
   if (this->offset_      != NULL) free(this->offset_);
   if (this->elementSize_ != NULL) free(this->elementSize_);
   if (this->dataStoreOffset_ != NULL) free(this->dataStoreOffset_);
+  if (this->lastOffset_ != NULL) free(this->lastOffset_);
 
 
   this->maxdims_      = (hsize_t*)calloc(ndims, sizeof(hsize_t));
@@ -269,11 +308,14 @@ asynStatus NDFileHDF5AttributeDataset::configureDims(int user_chunking)
   this->offset_       = (hsize_t*)calloc(ndims, sizeof(hsize_t));
   this->elementSize_  = (hsize_t*)calloc(ndims, sizeof(hsize_t));
   this->dataStoreOffset_ = (hsize_t*)calloc(ndims, sizeof(hsize_t));
+  this->lastOffset_ = (hsize_t*)calloc(ndims, sizeof(hsize_t));
 
   offset_[0] = 0;
   offset_[1] = 0;
   dataStoreOffset_[0] = 0;
   dataStoreOffset_[1] = 0;
+  lastOffset_[0] = 0;
+  lastOffset_[1] = 0;
 
   maxdims_[0] = H5S_UNLIMITED;
   maxdims_[1] = H5S_UNLIMITED;
@@ -312,6 +354,8 @@ asynStatus NDFileHDF5AttributeDataset::configureDimsFromDataset(bool multiframe,
     if (this->offset_      != NULL) free(this->offset_);
     if (this->virtualdims_ != NULL) free(this->virtualdims_);
     if (this->elementSize_ != NULL) free(this->elementSize_);
+    if (this->dataStoreOffset_ != NULL) free(this->dataStoreOffset_);
+    if (this->lastOffset_ != NULL) free(this->lastOffset_);
 
     this->maxdims_       = (hsize_t*)calloc(ndims,     sizeof(hsize_t));
     this->chunk_         = (hsize_t*)calloc(ndims,     sizeof(hsize_t));
@@ -320,6 +364,7 @@ asynStatus NDFileHDF5AttributeDataset::configureDimsFromDataset(bool multiframe,
     this->virtualdims_   = (hsize_t*)calloc(extradims, sizeof(hsize_t));
     this->elementSize_   = (hsize_t*)calloc(ndims,     sizeof(hsize_t));
     this->dataStoreOffset_ = (hsize_t*)calloc(ndims,     sizeof(hsize_t));
+    this->lastOffset_ = (hsize_t*)calloc(ndims,     sizeof(hsize_t));
   }
 
   if (multiframe){
@@ -333,6 +378,7 @@ asynStatus NDFileHDF5AttributeDataset::configureDimsFromDataset(bool multiframe,
       this->offset_[i]      = 0; // because we increment offset *before* each write we need to start at -1
       this->virtualdims_[i] = extra_dims[i];
       this->dataStoreOffset_[i] = 0;
+      this->lastOffset_[i] = 0;
     }
   }
 
@@ -350,6 +396,8 @@ asynStatus NDFileHDF5AttributeDataset::configureDimsFromDataset(bool multiframe,
   offset_[extradims+1]      = 0;
   dataStoreOffset_[extradims] = 0;
   dataStoreOffset_[extradims+1] = 0;
+  lastOffset_[extradims] = 0;
+  lastOffset_[extradims+1] = 0;
 
   calculateMaxBatchSize();
 
@@ -358,7 +406,6 @@ asynStatus NDFileHDF5AttributeDataset::configureDimsFromDataset(bool multiframe,
 
 void NDFileHDF5AttributeDataset::calculateMaxBatchSize()
 {
-
   int dimsCount = 1;
   if (extraDimensions_ > 1){
       for (int i =1; i < extraDimensions_; i++){

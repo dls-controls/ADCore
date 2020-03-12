@@ -73,6 +73,8 @@ private:
   int              attributeBatchCount_;
   hsize_t          *dataStoreOffset_;
   int              ammendedMaxBatchCount_;
+  hsize_t          *lastOffset_;
+  int              completeLine_;
 };
 
 #endif /* ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_ */
