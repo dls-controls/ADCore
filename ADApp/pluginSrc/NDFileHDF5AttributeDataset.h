@@ -40,11 +40,11 @@ private:
   asynStatus configureDims(int user_chunking);
   asynStatus configureDimsFromDataset(bool multiframe, int extradimensions, int *extra_dims, int *user_chunking);
   asynStatus typeAsHdf();
-  asynStatus writeAttributeDatasetBatch(int flush);
+  asynStatus writeAttributeDatasetBatch(int flush, int write);
   void extendDataSet();
   void extendDataSet(hsize_t *offsets);
   void extendIndexDataSet(hsize_t offset);
-  void calculateMaxBatchSize();
+  // void calculateMaxBatchSize();
 
   std::string      name_;            // Name of the attribute
   std::string      dsetName_;        // Name of the dataset to store
@@ -74,7 +74,9 @@ private:
   hsize_t          *dataStoreOffset_;
   int              ammendedMaxBatchCount_;
   hsize_t          *lastOffset_;
+  hsize_t          *offsetDiff_;
   int              completeLine_;
+  hsize_t          *newOffset_;
 };
 
 #endif /* ADAPP_PLUGINSRC_NDFILEHDF5ATTRIBUTEDATASET_H_ */
