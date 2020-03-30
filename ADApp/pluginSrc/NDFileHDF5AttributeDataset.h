@@ -75,7 +75,6 @@ private:
   int              ammendedMaxBatchCount_;
   hsize_t          *lastOffset_;
   hsize_t          *offsetDiff_;
-  int              completeLine_;
   hsize_t          *newOffset_;
 };
 
