@@ -170,7 +170,11 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
     // find the data based on datatype
     if (write == 1){
       writeAttributeDatasetBatch(flush, write);
-      ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      if (ndAttr->getDataType() != NDAttrString)
+        ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      else{
+        ret = ndAttr->getValue(NDAttrString, pStringDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      }
       if (ret == ND_ERROR) {
         memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
       }
@@ -183,7 +187,11 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
     else{
       for (int i=extraDimensions_ - 1; i>=0; --i)
         lastOffset_[i] = offset_[i];
-      ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      if (ndAttr->getDataType() != NDAttrString)
+        ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      else{
+        ret = ndAttr->getValue(NDAttrString, pStringDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      }
       if (ret == ND_ERROR) {
         memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
       }
@@ -236,7 +244,11 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
     // find the data based on datatype
     if (write == 1){
       writeAttributeDatasetBatch(flush, write);
-      ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      if (ndAttr->getDataType() != NDAttrString)
+        ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      else{
+        ret = ndAttr->getValue(NDAttrString, pStringDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      }
       if (ret == ND_ERROR) {
         memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
       }
@@ -247,7 +259,11 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDataset(hdf5::When_t whenTo
     else{
       for (int i=extraDimensions_ - 1; i>=0; --i)
         lastOffset_[i] = offset_[i];
-      ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      if (ndAttr->getDataType() != NDAttrString)
+        ret = ndAttr->getValue(NDAttrFloat64, pDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      else{
+        ret = ndAttr->getValue(NDAttrString, pStringDataValueStore_[attributeBatchCount_], MAX_ATTRIBUTE_STRING_SIZE);
+      }
       if (ret == ND_ERROR) {
         memset(pDataValueStore_[attributeBatchCount_], 0, MAX_ATTRIBUTE_STRING_SIZE);
       }
@@ -290,7 +306,11 @@ asynStatus NDFileHDF5AttributeDataset::writeAttributeDatasetBatch(int flush, int
     memspace_ = H5Screate_simple(rank_, elementSize_, NULL);
     // Select the hyperslab
     H5Sselect_hyperslab(filespace_, H5S_SELECT_SET, offset_, NULL, elementSize_, NULL);
-    H5Dwrite(dataset_, H5T_NATIVE_DOUBLE, memspace_, filespace_, H5P_DEFAULT, pDataValueStore_);
+    if (type_ == NDAttrString){
+      H5Dwrite(dataset_, datatype_, memspace_, filespace_, H5P_DEFAULT, pStringDataValueStore_);
+    }
+    else
+      H5Dwrite(dataset_, H5T_NATIVE_DOUBLE, memspace_, filespace_, H5P_DEFAULT, pDataValueStore_);
     if(flush ==1)
       status = this->flushDataset();
     H5Sclose(filespace_);

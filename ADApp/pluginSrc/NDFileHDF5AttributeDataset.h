@@ -70,6 +70,7 @@ private:
   int              extraDimensions_;
   hdf5::When_t     whenToSave_;
   void             *pDataValueStore_[MAX_BATCH_SIZE][1];
+  char             pStringDataValueStore_[MAX_BATCH_SIZE][256];
   int              attributeBatchCount_;
   hsize_t          *dataStoreOffset_;
   int              ammendedMaxBatchCount_;
