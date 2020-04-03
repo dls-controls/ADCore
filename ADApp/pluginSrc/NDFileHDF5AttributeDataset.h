@@ -44,7 +44,6 @@ private:
   void extendDataSet();
   void extendDataSet(hsize_t *offsets);
   void extendIndexDataSet(hsize_t offset);
-  // void calculateMaxBatchSize();
 
   std::string      name_;            // Name of the attribute
   std::string      dsetName_;        // Name of the dataset to store
@@ -72,7 +71,6 @@ private:
   void             *pDataValueStore_[MAX_BATCH_SIZE][1];
   char             pStringDataValueStore_[MAX_BATCH_SIZE][256];
   int              attributeBatchCount_;
-  hsize_t          *dataStoreOffset_;
   int              ammendedMaxBatchCount_;
   hsize_t          *lastOffset_;
   hsize_t          *offsetDiff_;
