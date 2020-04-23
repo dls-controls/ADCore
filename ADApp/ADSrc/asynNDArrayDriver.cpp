@@ -988,6 +988,7 @@ asynNDArrayDriver::asynNDArrayDriver(const char *portName, int maxAddr, int maxB
     setDoubleParam(NDPoolUsedMemory, 0);
 
     setIntegerParam(NDNumQueuedArrays, 0);
+    setIntegerParam(ADAcquire, 0);
 
     queuedArrayEvent_ = epicsEventCreate(epicsEventEmpty);
     queuedArrayUpdateDone_ = epicsEventCreate(epicsEventEmpty);
