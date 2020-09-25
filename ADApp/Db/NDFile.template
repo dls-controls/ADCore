@@ -1,4 +1,3 @@
-include "asynNDArrayDriverParamSet.template"
 #=================================================================#
 # Template file: NDFile.template
 # Database for NDFile driver, which saves files for NDArray data.
