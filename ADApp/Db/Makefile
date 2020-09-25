@@ -11,6 +11,9 @@ include $(TOP)/configure/CONFIG
 # Create and install (or just install)
 # databases, templates, substitutions like this
 
+# Generate template files from PVI YAML files if RULES_PVI exists
+PVI_TEMPLATES=YES
+-include $(PVI)/configure/RULES_PVI
 # General
 DB += NDArrayBase.template
 DB += ADBase.template
