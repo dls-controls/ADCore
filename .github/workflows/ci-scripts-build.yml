@@ -42,6 +42,8 @@ jobs:
       run: python .ci/cue.py prepare
     - name: Gem install coveralls-lcov
       run: sudo gem install coveralls-lcov
+    - name: Install PVI
+      run: ci/install-pvi.sh
     - name: Configure packages
       run: sh ci/configure-packages.sh
       shell: bash
